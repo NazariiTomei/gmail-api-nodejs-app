@@ -124,6 +124,38 @@ async function readMail(req, res) {
   }
 }
 
+const create_profile = async (req, res) => {
+  try {
+    const pt = require('puppeteer')
+    const browser = await pt.launch()
+    const page = await browser.newPage();
+    await page.goto('https://www.upwork.com/nx/signup/', {
+      waitUntil: "domcontentloaded",
+    });
+    await page.$$eval(
+      'div[data-cy="button-box"][data-qa="work"]',
+      nodes => nodes[nodes.length - 1].click()
+    );
+    await page.click(`button[type="button"][data-qa="btn-apply"]`);
+    await page.waitForTimeout(2000)
+
+    await page.$eval('#first-name-input', el => el.value = 'Alex');
+    await page.$eval('#last-name-input', el => el.value = 'Don');
+    await page.$eval('#redesigned-input-email', el => el.value = 'rewq4321+11@skiff.com');
+    await page.$eval('#password-input', el => el.value = 'rewq4321`');
+    await page.select('div#country-dropdown div#dropdown-label-7 div span.flex-1.ellipsis', el => el.value = "Canada")
+    await page.click('#checkbox-terms');
+    await page.waitForTimeout(2000)
+    await page.click('#button-submit-form');
+
+    await page.waitForTimeout(4000)
+    await browser.close()
+    res.send("success")
+  } catch (error) {
+    res.send(error)
+  }
+}
+
 module.exports = {
   getUser,
   sendMail,
