@@ -1,4 +1,6 @@
-const { google } = require("googleapis");
+const start = 37
+const { google } = require('googleapis');
+const { faker } = require('@faker-js/faker')
 const pt = require('puppeteer')
 const axios = require('axios')
 const nodemailer = require('nodemailer')
@@ -6,12 +8,18 @@ const data = require('./data.json')
 const limit = data.length
 
 require("dotenv").config();
-const start = 63;
 const delay = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds));
 
 const repeat = async (func, times) => {
   await func(times);
   times && --times && await repeat(func, times);
+}
+
+const dummyGmail = (gmail, index) => {
+  let binaryString = index.toString(2).split('').reverse().join('');
+  return gmail.split("").map((item, idx) =>
+    item + (binaryString.at(idx) === '1' ? '.' : '')
+  ).join('') + '@gmail.com'
 }
 
 const Base64 = {
@@ -69,31 +77,11 @@ const generateConfig = (url, accessToken) => {
   };
 };
 
-const sendMail = async () => {
-  try {
-    const accessToken = await oAuth2Client.getAccessToken();
-    const transport = nodemailer.createTransport({
-      service: "gmail",
-      auth: {
-        ...CONSTANTS.auth,
-        accessToken: accessToken,
-      },
-    });
-
-    const mailOptions = {
-      ...CONSTANTS.mailoptions,
-      text: "All operation is completed!",
-    };
-
-    const result = await transport.sendMail(mailOptions);
-    console.log('completed!')
-  } catch (error) {
-    console.log(error);
-  }
-}
-
 const typeinfo = async (page, item) => {
   try {
+    await page.goto('https://www.upwork.com/nx/create-profile/welcome', {
+      waitUntil: "domcontentloaded",
+    });
     // https://www.upwork.com/nx/create-profile/welcome
     await page.waitForSelector('button[data-qa="get-started-btn"]')
     await page.$eval('button[data-qa="get-started-btn"]', el => el.click())
@@ -125,18 +113,18 @@ const typeinfo = async (page, item) => {
     } catch (err) {
       await page.waitForSelector("input[type=file]")
       await delay(1000)
-      await (await page.$("input[type=file]")).uploadFile('C:/upwork/resume.pdf')
+      await (await page.$("input[type=file]")).uploadFile('./upwork/resume.pdf')
       await delay(6000)
       await page.$eval('[data-qa="resume-upload-continue-btn"]', el => el.click())
     }
 
     // https://www.upwork.com/nx/create-profile/title
-    await page.waitForSelector('input[aria-labelledby="title-label"][aria-required="true"][type="text"][placeholder="Software Engineer | Javascript | iOS"]')
+    await page.waitForSelector('input[aria-labelledby="title-label"][aria-required="true"][type="text"]')
     await delay(1000)
-    await page.$eval('input[aria-labelledby="title-label"][aria-required="true"][type="text"][placeholder="Software Engineer | Javascript | iOS"]', el => el.value = '')
+    await page.$eval('input[aria-labelledby="title-label"][aria-required="true"][type="text"]', el => el.value = '')
     await delay(1000)
     await page.type(
-      'input[aria-labelledby="title-label"][aria-required="true"][type="text"][placeholder="Software Engineer | Javascript | iOS"]',
+      'input[aria-labelledby="title-label"][aria-required="true"][type="text"]',
       item.title,
       { delay: 50 }
     )
@@ -145,6 +133,7 @@ const typeinfo = async (page, item) => {
 
     // https://www.upwork.com/nx/create-profile/employment
     await page.waitForSelector('button[data-test="next-button"][type="button"][data-ev-label="wizard_next"]')
+    await delay(500)
     await page.$eval('button[data-test="next-button"][type="button"][data-ev-label="wizard_next"]', el => el.click())
 
     // https://www.upwork.com/nx/create-profile/education
@@ -163,7 +152,6 @@ const typeinfo = async (page, item) => {
       await delay(3000)
     }
 
-    await delay(2000)
     // https://www.upwork.com/nx/create-profile/languages
     await page.waitForSelector('[data-test="dropdown-toggle"]')
     await delay(1000)
@@ -194,32 +182,7 @@ const typeinfo = async (page, item) => {
     await page.waitForSelector('textarea[aria-labelledby="overview-label"][aria-describedby="overview-counter"]')
     await page.$eval('textarea[aria-labelledby="overview-label"][aria-describedby="overview-counter"]', el => el.value = '')
     await page.type('textarea[aria-labelledby="overview-label"][aria-describedby="overview-counter"]',
-      `Full Stack Developer and system administrator with over 6+ years of experience in software engineering and developing new features and apps for different products and companies by using programming tools like Laravel, Ruby on Rails, Express JS, HTML, CSS, Node JS, React JS, Vue JS and Angular.
-
-  Longtime Shopify expert, I have 6+ years of experience on the Shopify and Shopify Plus platform, I'm well versed and experienced on every aspect of the platform.
-  
-  Capable of analyzing customer feedback in order to find the best way to create new and enhance the existing product features.
-  Will Always Be With You and Provide High Quality and Friendly Service.
-  
-  My core skills include:
-  - Backend
-  * Node.js/MogngoDB/ExpressJS
-  * Ruby/Ruby on Rails
-  * Mysql/PostgreSQL
-  * php/CI/Symfony/CakePHP/Laravel
-  
-  - Front End
-  * React JS/ Next.JS / Redux / React Native
-  * Vue/nuxt.js
-  * Wordpress/ Shopify/Woocomerce/Squarespace/Opencart
-  * Javascript/Jquery
-  * HTML/CSS, SCSS, SASS, Bootstrap, TailwindCSS
-  
-  - Other Services
-  * Github, Bitbucket, Gitlab,
-  * Microservices, GraphQL, RESTful API, System Administrator.
-  
-  Let me help you to grow your business successfully`,
+      `Last year, I utilized my expertise and experience to successfully assist two startups in launching their web applications.`,
       { delay: 10 }
     )
     await delay(500)
@@ -246,7 +209,8 @@ const typeinfo = async (page, item) => {
     await page.waitForSelector('[aria-labelledby="street-label"]')
     await page.$eval('[data-qa="open-loader"]', el => el.click())
     await delay(2000)
-    await (await page.$("input[type=file]")).uploadFile(`C:/upwork/${item.avatar}`)
+    // await (await page.$("input[type=file]")).uploadFile(`./upwork/${item.avatar}`)
+    await (await page.$("input[type=file]")).uploadFile(`./upwork/img (${Math.ceil(Math.random() * 3)}).jpg`)
     await page.$eval('button[data-qa="btn-save"]', el => el.click())
     await delay(1000)
     await page.$eval('button[data-qa="btn-save"]', el => el.click())
@@ -257,16 +221,155 @@ const typeinfo = async (page, item) => {
     await delay(2000)
     await page.$eval('[aria-labelledby="city-label"] li', el => el.click())
     await page.type('[aria-labelledby="postal-code-label"]', item.zipcode, { delay: 50 })
-    await page.type('[inputmode="numeric"]', item.phone, { delay: 50 })
+    await page.type('[inputmode="numeric"]', faker.phone.number('###-###-####'), { delay: 50 })
     await page.$eval('button[data-test="next-button"][type="button"][data-ev-label="wizard_next"]', el => el.click())
-  } catch (error) {
-    console.log(error)
-    await page.goto('https://www.upwork.com/nx/create-profile/welcome', {
+
+    // https://www.upwork.com/nx/create-profile/submit
+    await page.waitForSelector('button[data-qa="submit-profile-top-btn"]')
+    await page.$eval('button[data-qa="submit-profile-top-btn"]', el => el.click())
+
+    // https://www.upwork.com/nx/create-profile/finish
+    await page.waitForSelector('a.up-n-link.air3-btn.air3-btn-secondary')
+    await page.goto("https://www.upwork.com/freelancers/", {
       waitUntil: "domcontentloaded",
     });
-    typeinfo()
+    await delay(2000)
+  } catch (error) {
+    console.log("typeinfo", error)
+    await page.screenshot({ path: 'fullpage.png', fullPage: true })
+    console.log(page.url())
+    typeinfo(page, item)
   }
+}
 
+const configSetting = async (page, item) => {
+  try {
+    try {
+      // https://www.upwork.com/freelancers/
+      await page.goto("https://www.upwork.com/freelancers/settings/profile", {
+        waitUntil: "domcontentloaded",
+      });
+      // await delay(100000)
+      // https://www.upwork.com/freelancers/settings/profile
+      await page.waitForSelector("input#securityQuestion_answer")
+      await page.type("input#securityQuestion_answer", "rewq4321`")
+      await page.$eval("input#securityQuestion_lockingNotice", el => el.click())
+      await page.$eval("input#securityQuestion_remember", el => el.click())
+      await delay(500)
+      await page.waitForSelector("button#control_save")
+      await page.$eval("button#control_save", el => el.click())
+      // await page.waitForSelector('input#sensitiveZone_password.up-input.width-md')
+      // await page.type("input#sensitiveZone_password.up-input.width-md", "rewq4321`")
+      // await page.waitForSelector("button#control_save.up-btn.mr-0.up-btn-primary")
+      // await page.$eval("button#control_save.up-btn.mr-0.up-btn-primary", el => el.click())
+
+      // https://www.upwork.com/freelancers/settings/profile
+      await page.waitForSelector("div#dropdown-label-21")
+      await page.$eval("div#dropdown-label-21", el => el.click())
+      await page.waitForSelector("ul#dropdown-menu-21 li:nth-child(2)")
+      await page.$eval("ul#dropdown-menu-21 li:nth-child(2)", el => el.click())
+      await page.$eval("input.up-button-box-input[value='3']", el => el.click())
+    } catch (error) {
+      console.error(error)
+      await page.screenshot({ path: 'fullpage.png', fullPage: true })
+      console.log(page.url())
+    }
+
+    // https://www.upwork.com/ab/notification-settings/
+    await page.goto('https://www.upwork.com/ab/notification-settings/', {
+      waitUntil: "domcontentloaded",
+    })
+    await page.waitForSelector('div#dropdown-label-6[aria-labelledby="email-unread-activity dropdown-label-6"]')
+    await page.$eval('div#dropdown-label-6[aria-labelledby="email-unread-activity dropdown-label-6"]', el => el.click())
+    await page.waitForSelector('ul#dropdown-menu-6[aria-labelledby="email-unread-activity"] li')
+    await page.$eval('ul#dropdown-menu-6[aria-labelledby="email-unread-activity"] li', el => el.click())
+
+    // https://www.upwork.com/ab/portfolios/
+    await page.goto('https://www.upwork.com/ab/portfolios/', {
+      waitUntil: "domcontentloaded",
+    })
+    await page.waitForSelector('input#title')
+    await page.type('input#title', 'Twilio API')
+    await page.type('input#completionDate', '06/18/2018')
+    await page.$eval('button.up-btn.up-btn-primary.m-0.pull-right', el => el.click())
+    await page.waitForSelector('input[value="2"]')
+    await page.$eval('input[value="2"]', el => el.click())
+    await page.$eval('button.up-btn.up-btn-primary.m-0.pull-right', el => el.click())
+    await page.waitForSelector('input[type="file"]')
+    await (await page.$("input[type=file]")).uploadFile('./upwork/twilio_api.jpg')
+    await delay(10000)
+    await page.type('textarea.up-textarea', "Twilio API Chat App")
+    await page.$eval('button.up-btn.up-btn-primary.m-0.pull-right', el => el.click())
+    await delay(3000)
+    await page.waitForSelector('button.up-btn.up-btn-primary.m-0.pull-right')
+    await page.$eval('button.up-btn.up-btn-primary.m-0.pull-right', el => el.click())
+    await delay(1000)
+
+    await page.goto('https://www.upwork.com/ab/portfolios/', {
+      waitUntil: "domcontentloaded",
+    })
+    await page.waitForSelector('input#title')
+    await page.type('input#title', 'Chat App')
+    await page.type('input#completionDate', '02/14/2017')
+    await page.$eval('button.up-btn.up-btn-primary.m-0.pull-right', el => el.click())
+    await page.waitForSelector('input[value="2"]')
+    await page.$eval('input[value="2"]', el => el.click())
+    await page.$eval('button.up-btn.up-btn-primary.m-0.pull-right', el => el.click())
+    await page.waitForSelector('input[type="file"]')
+    await (await page.$("input[type=file]")).uploadFile('./upwork/chat_app.jpg')
+    await delay(10000)
+    await page.type('textarea.up-textarea', "React Chat App")
+    await page.$eval('button.up-btn.up-btn-primary.m-0.pull-right', el => el.click())
+    await delay(3000)
+    await page.waitForSelector('button.up-btn.up-btn-primary.m-0.pull-right')
+    await page.$eval('button.up-btn.up-btn-primary.m-0.pull-right', el => el.click())
+    await delay(1000)
+
+    await page.goto('https://www.upwork.com/ab/portfolios/', {
+      waitUntil: "domcontentloaded",
+    })
+    await page.waitForSelector('input#title')
+    await page.type('input#title', 'DICOM Viewer')
+    await page.type('input#completionDate', '10/24/2018')
+    await page.$eval('button.up-btn.up-btn-primary.m-0.pull-right', el => el.click())
+    await page.waitForSelector('input[value="2"]')
+    await page.$eval('input[value="2"]', el => el.click())
+    await page.$eval('button.up-btn.up-btn-primary.m-0.pull-right', el => el.click())
+    await page.waitForSelector('input[type="file"]')
+    await (await page.$("input[type=file]")).uploadFile('./upwork/dicom.jpg')
+    await delay(10000)
+    await page.type('textarea.up-textarea', "Project for medical DICOM standard. Implementation of DICOM image processing and full Viewer developed in C++ using Qt, VTK and ITK frameworks.")
+    await page.$eval('button.up-btn.up-btn-primary.m-0.pull-right', el => el.click())
+    await delay(3000)
+    await page.waitForSelector('button.up-btn.up-btn-primary.m-0.pull-right')
+    await page.$eval('button.up-btn.up-btn-primary.m-0.pull-right', el => el.click())
+    await delay(1000)
+
+    await page.goto('https://www.upwork.com/ab/portfolios/', {
+      waitUntil: "domcontentloaded",
+    })
+    await page.waitForSelector('input#title')
+    await page.type('input#title', 'Video Streaming')
+    await page.type('input#completionDate', '02/14/2022')
+    await page.$eval('button.up-btn.up-btn-primary.m-0.pull-right', el => el.click())
+    await page.waitForSelector('input[value="2"]')
+    await page.$eval('input[value="2"]', el => el.click())
+    await page.$eval('button.up-btn.up-btn-primary.m-0.pull-right', el => el.click())
+    await page.waitForSelector('input[type="file"]')
+    await (await page.$("input[type=file]")).uploadFile('./upwork/video.jpg')
+    await delay(10000)
+    await page.type('textarea.up-textarea', "Video Steaming App")
+    await page.$eval('button.up-btn.up-btn-primary.m-0.pull-right', el => el.click())
+    await delay(3000)
+    await page.waitForSelector('button.up-btn.up-btn-primary.m-0.pull-right')
+    await page.$eval('button.up-btn.up-btn-primary.m-0.pull-right', el => el.click())
+    await delay(1000)
+  } catch (error) {
+    console.log("configSetting", error)
+    await page.screenshot({ path: 'fullpage.png', fullPage: true })
+    console.log(page.url())
+    await configSetting(page, item)
+  }
 }
 
 const readMail = async () => {
@@ -294,9 +397,9 @@ const readMail = async () => {
 
 repeat(async (inx) => {
   const item = data[limit - inx];
-  const browser = await pt.launch({ headless: false })
+  const browser = await pt.launch({ "headless": false, args: ['--start-maximized'] })
   const page = await browser.newPage();
-  await page.setViewport({ width: 1680, height: 1050 });
+  await page.setViewport({ width: 1680, height: 850 });
   await page.goto('https://www.upwork.com/nx/signup/?dest=home', {
     waitUntil: "domcontentloaded",
   });
@@ -308,9 +411,9 @@ repeat(async (inx) => {
   await page.$eval(`button[type="button"][data-qa="btn-apply"]`, el => el.click());
 
   await page.waitForSelector('#first-name-input');
-  await page.type('#first-name-input', item.name);
-  await page.type('#last-name-input', item.surname);
-  await page.type('#redesigned-input-email', `lm8361616+${start + limit - inx}@gmail.com`);
+  await page.type('#first-name-input', faker.person.firstName("male"));
+  await page.type('#last-name-input', faker.person.lastName("male"));
+  await page.type('#redesigned-input-email', dummyGmail('lm8361616', start + 30 - inx));
   await page.type('#password-input', 'rewq4321`');
   await page.$eval('[aria-labelledby*="select-a-country"]', el => el.click())
   await page.waitForSelector('[autocomplete="country-name"]');
@@ -322,13 +425,16 @@ repeat(async (inx) => {
   await delay(10000);
 
   const verify_link = await readMail();
+  console.log(verify_link)
   await page.goto(verify_link, {
     waitUntil: "domcontentloaded",
   });
 
+  // await delay(10000);
+
   if (page.url().search('login') > 0) {
     await page.waitForSelector('#login_username')
-    await page.type("#login_username", `lm8361616+${start + limit - inx}@gmail.com`)
+    await page.type("#login_username", dummyGmail('lm8361616', start + 30 - inx))
     await delay(500)
     await page.waitForSelector('#login_password_continue')
     await page.$eval("#login_password_continue", el => el.click())
@@ -338,16 +444,27 @@ repeat(async (inx) => {
     await delay(500)
     await page.waitForSelector('#login_control_continue')
     await page.$eval('#login_control_continue', el => el.click())
+    await delay(500)
+    try {
+      await page.waitForSelector('#login_answer', {timeout: 3000})
+      await page.type('#login_answer', 'rewq4321`')
+      await page.waitForSelector('#login_remember')
+      await page.$eval('#login_remember')
+      await delay(500)
+      await page.waitForSelector('#login_control_continue')
+      await page.$eval('#login_control_continue', el => el.click())
+    } catch (error) {
+      
+    }
   }
 
-  await delay(6000);
+  await delay(5000);
 
   await typeinfo(page, item)
 
-  await page.waitForSelector('button[data-qa="submit-profile-top-btn"]')
-  await page.$eval('button[data-qa="submit-profile-top-btn"]', el => el.click())
-  await delay(5000)
-  await browser.close()
-}, 20);
+  await configSetting(page, item)
 
-sendMail();
+  await browser.close()
+
+  await delay((Math.random() * 200 + 100) * 1000)
+}, 30);
